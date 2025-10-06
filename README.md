@@ -113,6 +113,20 @@ You can easily customize the UI by modifying:
 4. Test thoroughly
 5. Submit a pull request
 
+## Deployment
+
+### Quick Deploy to Netlify
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/raviperla/meesho-native-language-search-bar)
+
+### Manual Deployment Options
+
+1. **Netlify**: Connect GitHub repo → Deploy
+2. **Vercel**: Import GitHub repo → Deploy  
+3. **GitHub Pages**: Settings → Pages → Deploy from main branch
+
+### Live Demo
+🌐 **Live Site**: [Your deployed URL will appear here]
+
 ## License
 
 MIT License - feel free to use this project for learning and development purposes.
