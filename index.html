@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meesho - Yellow Saree with Flowers</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Header Section -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <h2>Meesho</h2>
+            </div>
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="yellow saree with flowers" value="yellow saree with flowers">
+                <i class="fas fa-times"></i>
+                <button class="audio-record-btn" id="audio-record-btn" title="Record audio">
+                    <i class="fas fa-microphone"></i>
+                </button>
+            </div>
+            <div class="header-nav">
+                <a href="#" class="nav-link">Become a Supplier</a>
+                <a href="#" class="nav-link">Investor Relations</a>
+                <div class="profile-section">
+                    <i class="fas fa-user"></i>
+                    <span>Profile</span>
+                </div>
+                <div class="cart-section">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Cart</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Navigation -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="#" class="nav-item">Women Ethnic</a>
+            <a href="#" class="nav-item">Women Western</a>
+            <a href="#" class="nav-item">Men</a>
+            <a href="#" class="nav-item">Kids</a>
+            <a href="#" class="nav-item">Home & Kitchen</a>
+            <a href="#" class="nav-item">Beauty & Health</a>
+            <a href="#" class="nav-item">Jewellery & Accessories</a>
+            <a href="#" class="nav-item">Bags & Footwear</a>
+            <a href="#" class="nav-item">Electronics</a>
+            <a href="#" class="nav-item">Sports & Fitness</a>
+            <a href="#" class="nav-item">Car & Motorbike</a>
+            <a href="#" class="nav-item">Office</a>
+        </div>
+    </nav>
+
+    <!-- Page Title -->
+    <div class="page-title">
+        <h1>yellow saree with flowers</h1>
+    </div>
+
+    <!-- Search Suggestions -->
+    <div class="search-suggestions" id="search-suggestions" style="display: none;">
+        <div class="suggestions-container">
+            <div class="suggestions-header">
+                <i class="fas fa-lightbulb"></i>
+                <span>Did you mean?</span>
+            </div>
+            <div class="suggestions-content">
+                <div class="suggestion-item">
+                    <span class="suggestion-label">Original:</span>
+                    <a href="#" class="suggestion-link" id="original-suggestion">yellow saree with flowers</a>
+                </div>
+                <div class="suggestion-item">
+                    <span class="suggestion-label">Translated:</span>
+                    <a href="#" class="suggestion-link" id="translated-suggestion">yellow saree with flowers</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sort-section">
+                <label for="sort-select">Sort by:</label>
+                <select id="sort-select" class="sort-dropdown">
+                    <option value="relevance">Relevance</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                    <option value="rating">Rating</option>
+                    <option value="newest">Newest First</option>
+                </select>
+            </div>
+
+            <div class="filters-section">
+                <h3>FILTERS</h3>
+                <p class="product-count">1000+ Products</p>
+
+                <!-- Category Filter -->
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('category')">
+                        <span>Category</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="filter-content" id="category">
+                        <label class="checkbox-item">
+                            <input type="checkbox">
+                            <span>Artificial Plant And Flower</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox">
+                            <span>Gifts</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox">
+                            <span>Sarees</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Gender Filter -->
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('gender')">
+                        <span>Gender</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="filter-content" id="gender">
+                        <button class="filter-pill">Girls</button>
+                        <button class="filter-pill">Women</button>
+                    </div>
+                </div>
+
+                <!-- Other Filters -->
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('color')">
+                        <span>Color</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('fabric')">
+                        <span>Fabric</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('price')">
+                        <span>Price</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('rating')">
+                        <span>Rating</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('combo')">
+                        <span>Combo</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('discount')">
+                        <span>Discount</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('gold')">
+                        <span>Meesho Gold</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('material')">
+                        <span>Material</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('pattern')">
+                        <span>Print Or Pattern Type</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <div class="filter-header" onclick="toggleFilter('ornamentation')">
+                        <span>Ornamentation</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Embedded Meesho Search -->
+        <main class="embedded-content">
+            <div class="iframe-container">
+                <iframe id="meesho-iframe"
+                    src="https://www.meesho.com/search?q=yellow%20saree%20with%20flowers&searchType=manual&searchIdentifier=text_search"
+                    frameborder="0" allowfullscreen loading="lazy">
+                </iframe>
+                <div class="iframe-fallback" id="iframe-fallback">
+                    <div class="fallback-content">
+                        <div class="fallback-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h3>Meesho Content Blocked</h3>
+                        <p>Due to browser security policies, we cannot embed Meesho directly. This is normal behavior to
+                            protect user privacy and security.</p>
+                        <div class="fallback-actions">
+                            <button onclick="openInNewTab()" class="new-tab-btn">
+                                <i class="fas fa-external-link-alt"></i>
+                                Open Meesho in New Tab
+                            </button>
+                        </div>
+                        <div class="fallback-info">
+                            <div class="link-section">
+                                <p><strong>Original Search:</strong></p>
+                                <div class="search-text" id="original-text">yellow saree with flowers</div>
+                                <div class="url-display" id="original-url">
+                                    https://www.meesho.com/search?q=yellow%20saree%20with%20flowers&searchType=manual&searchIdentifier=text_search
+                                </div>
+                            </div>
+                            <div class="link-section">
+                                <p><strong>Translated Search:</strong></p>
+                                <div class="search-text" id="translated-text">yellow saree with flowers</div>
+                                <div class="url-display" id="translated-url">
+                                    https://www.meesho.com/search?q=yellow%20saree%20with%20flowers&searchType=manual&searchIdentifier=text_search
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

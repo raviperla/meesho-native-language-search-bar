@@ -1,0 +1,36 @@
+{
+    "name": "meesho-ui-clone",
+    "version": "1.0.0",
+    "description": "A clone of Meesho e-commerce product listing UI",
+    "main": "index.html",
+    "scripts": {
+        "start": "npx http-server -p 3000 -o",
+        "dev": "npx live-server --port=3000 --open=/index.html",
+        "build": "echo 'No build process needed for static files'",
+        "serve": "npx http-server -p 8080"
+    },
+    "keywords": [
+        "ecommerce",
+        "ui",
+        "meesho",
+        "product-listing",
+        "html",
+        "css",
+        "javascript"
+    ],
+    "author": "Your Name",
+    "license": "MIT",
+    "devDependencies": {
+        "http-server": "^14.1.1",
+        "live-server": "^1.2.2"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yourusername/meesho-ui-clone.git"
+    },
+    "bugs": {
+        "url": "https://github.com/yourusername/meesho-ui-clone/issues"
+    },
+    "homepage": "https://github.com/yourusername/meesho-ui-clone#readme"
+}
+
