@@ -325,6 +325,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let audioChunks = [];
     let recordingTimer = null;
     let recordingStartTime = null;
+    let recordingTimeout = null;
 
     console.log('Audio button found:', !!audioRecordBtn);
 
@@ -401,6 +402,13 @@ document.addEventListener('DOMContentLoaded', function () {
             // Start timer
             startRecordingTimer();
 
+            // Set 30-second timeout for auto-stop
+            recordingTimeout = setTimeout(async () => {
+                console.log('30-second recording limit reached. Auto-stopping...');
+                await stopRecording();
+                showToast('Recording stopped automatically after 30 seconds.', 'info');
+            }, 30000);
+
         } catch (error) {
             console.error('Error starting recording:', error);
             isRecording = false;
@@ -427,6 +435,12 @@ document.addEventListener('DOMContentLoaded', function () {
         updateRecordingUI(false);
         hideRecordingPopup();
         stopRecordingTimer();
+
+        // Clear the 30-second timeout if it exists
+        if (recordingTimeout) {
+            clearTimeout(recordingTimeout);
+            recordingTimeout = null;
+        }
     }
 
     async function processAudioRecording() {
@@ -442,19 +456,25 @@ document.addEventListener('DOMContentLoaded', function () {
             // Convert to base64 for Gemini API
             const base64Audio = await blobToBase64(audioBlob);
 
+            // Show loading indicator for transcription
+            showLoadingIndicator();
+            
             // Send to Gemini API for speech-to-text
             const transcript = await transcribeAudioWithGemini(base64Audio);
-
+            
+            // Hide loading indicator
+            hideLoadingIndicator();
+            
             if (transcript && transcript.trim()) {
                 console.log('Audio transcribed:', transcript);
-
+                
                 // Update search input
                 const searchInput = document.querySelector('.search-bar input');
                 if (searchInput) {
                     searchInput.value = transcript;
                     searchInput.focus();
-
-                    // Trigger translation
+                    
+                    // Trigger translation (which will show its own loading indicator)
                     await debouncedTranslate(transcript);
                 }
             } else {
@@ -463,6 +483,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         } catch (error) {
             console.error('Error processing audio:', error);
+            hideLoadingIndicator(); // Hide loading indicator on error
             showToast('Error processing audio. Please try again.', 'error');
         }
     }
@@ -503,11 +524,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
                 <div class="recording-text">Recording...</div>
                 <div class="recording-timer" id="recording-timer">00:00</div>
-                <div class="recording-instructions">Speak your search query</div>
+                <div class="recording-instructions">Speak things you require (e.g., పసుపు చీర, ಹಳದಿ ಸೀರೆ, पीली साड़ी)</div>
                 <button class="stop-recording-btn" id="stop-recording-btn">
                     <i class="fas fa-stop"></i>
                     Stop Recording
                 </button>
+                <div class="recording-limit-info">Recording will automatically stop after 30 seconds</div>
             </div>
         `;
 
@@ -607,6 +629,13 @@ document.addEventListener('DOMContentLoaded', function () {
             .stop-recording-btn i {
                 font-size: 14px;
             }
+            .recording-limit-info {
+                font-size: 12px;
+                color: #ccc;
+                margin-top: 10px;
+                text-align: center;
+                opacity: 0.8;
+            }
         `;
 
         document.head.appendChild(style);
@@ -689,6 +718,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }, 4000);
     }
+
 
     // Helper function to convert blob to base64
     function blobToBase64(blob) {
@@ -1072,23 +1102,67 @@ function debounce(func, wait) {
     };
 }
 
+// Loading indicator functions
+function showLoadingIndicator() {
+    // Remove any existing loading indicator
+    hideLoadingIndicator();
+    
+    // Create loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'gemini-loading';
+    loadingDiv.className = 'loading-text';
+    loadingDiv.innerHTML = `
+        <span>Translating with Gemini AI</span>
+        <div class="loading-spinner"></div>
+    `;
+    
+    // Insert after the search suggestions container
+    const searchSuggestions = document.getElementById('search-suggestions');
+    if (searchSuggestions && searchSuggestions.parentNode) {
+        searchSuggestions.parentNode.insertBefore(loadingDiv, searchSuggestions.nextSibling);
+    }
+}
+
+function hideLoadingIndicator() {
+    const loadingDiv = document.getElementById('gemini-loading');
+    if (loadingDiv) {
+        loadingDiv.remove();
+    }
+}
+
 // Debounced translation function (optimized for Gemini 2.0 Flash speed)
 const debouncedTranslate = debounce(async (query) => {
     if (query.trim().length > 2) {
-        const result = await translateWithGemini(query);
-        console.log('Translation result:', result); // Debug log
+        // Show loading indicator
+        showLoadingIndicator();
+        
+        try {
+            const result = await translateWithGemini(query);
+            console.log('Translation result:', result); // Debug log
 
-        // Always show suggestions if we have a translation result
-        if (result && result.original && result.translated) {
-            showSearchSuggestions(result.original, result.translated, result.cultural_context);
-            // Update fallback URLs with both original and translated queries
-            updateFallbackUrls(result.original, result.translated);
-        } else {
+            // Hide loading indicator
+            hideLoadingIndicator();
+
+            // Always show suggestions if we have a translation result
+            if (result && result.original && result.translated) {
+                showSearchSuggestions(result.original, result.translated, result.cultural_context);
+                // Update fallback URLs with both original and translated queries
+                updateFallbackUrls(result.original, result.translated);
+            } else {
+                hideSearchSuggestions();
+                // Update fallback URLs with the same query for both
+                updateFallbackUrls(query, query);
+            }
+        } catch (error) {
+            // Hide loading indicator on error
+            hideLoadingIndicator();
+            console.error('Translation error:', error);
+            // Fallback: show original query as both original and translated
             hideSearchSuggestions();
-            // Update fallback URLs with the same query for both
             updateFallbackUrls(query, query);
         }
     } else {
+        hideLoadingIndicator();
         hideSearchSuggestions();
         updateFallbackUrls(query, query);
     }
