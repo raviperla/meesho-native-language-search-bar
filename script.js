@@ -318,167 +318,440 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Audio recording functionality
+    // Custom Audio Recording functionality with Gemini API
     const audioRecordBtn = document.getElementById('audio-record-btn');
+    let isRecording = false;
     let mediaRecorder = null;
     let audioChunks = [];
-    let isRecording = false;
+    let recordingTimer = null;
+    let recordingStartTime = null;
 
-    console.log('Audio button found:', !!audioRecordBtn); // Debug log
+    console.log('Audio button found:', !!audioRecordBtn);
 
     if (audioRecordBtn) {
         audioRecordBtn.addEventListener('click', function (e) {
             e.preventDefault();
-            console.log('Audio button clicked'); // Debug log
+            console.log('Audio button clicked');
             toggleAudioRecording();
         });
     }
 
-    // Check if browser supports audio recording
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.log('Audio recording not supported'); // Debug log
-        if (audioRecordBtn) {
-            audioRecordBtn.style.display = 'none';
-        }
-    } else {
-        console.log('Audio recording supported'); // Debug log
+    // Check browser support for audio recording
+    const audioSupported = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+    console.log('Audio recording supported:', audioSupported);
+
+    if (!audioSupported && audioRecordBtn) {
+        audioRecordBtn.style.display = 'none';
+        console.log('Audio recording not supported, hiding audio button');
     }
 
-    // Audio recording functions (moved inside DOMContentLoaded)
     async function toggleAudioRecording() {
-        console.log('Toggle audio recording called, isRecording:', isRecording); // Debug log
-        if (isRecording) {
-            stopRecording();
-        } else {
+        console.log('Toggle audio recording called, isRecording:', isRecording);
+
+        // Only start recording if not already recording
+        if (!isRecording) {
             await startRecording();
         }
+        // If already recording, do nothing - user should use stop button in popup
     }
 
     async function startRecording() {
-        console.log('Starting speech recognition...'); // Debug log
+        console.log('Starting custom audio recording...');
+
         try {
-            // Use direct speech recognition instead of audio recording
-            isRecording = true;
-            updateRecordingUI(true);
-
-            const text = await startSpeechRecognition();
-            if (text) {
-                console.log('Speech recognized:', text); // Debug log
-                // Update search input with transcribed text
-                const searchInput = document.querySelector('.search-bar input');
-                if (searchInput) {
-                    searchInput.value = text;
-                    searchInput.focus();
-
-                    // Trigger translation
-                    const event = new Event('input', { bubbles: true });
-                    searchInput.dispatchEvent(event);
+            // Get microphone access
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    sampleRate: 44100
                 }
-            }
+            });
 
-            isRecording = false;
-            updateRecordingUI(false);
+            isRecording = true;
+            audioChunks = [];
+            recordingStartTime = Date.now();
+
+            // Create MediaRecorder
+            mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'audio/webm;codecs=opus'
+            });
+
+            // Set up event handlers
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                console.log('Recording stopped, processing audio...');
+                await processAudioRecording();
+                // Stop all tracks
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            // Start recording
+            mediaRecorder.start(100); // Collect data every 100ms
+
+            // Update UI and show recording popup
+            updateRecordingUI(true);
+            showRecordingPopup();
+
+            // Start timer
+            startRecordingTimer();
 
         } catch (error) {
-            console.error('Error with speech recognition:', error);
+            console.error('Error starting recording:', error);
             isRecording = false;
             updateRecordingUI(false);
-            alert('Unable to access microphone or speech recognition failed. Please check permissions and try again.');
+
+            if (error.name === 'NotAllowedError') {
+                showToast('Microphone access denied. Please allow microphone access and try again.', 'error');
+            } else if (error.name === 'NotFoundError') {
+                showToast('No microphone found. Please check your microphone.', 'error');
+            } else {
+                showToast('Error starting recording. Please try again.', 'error');
+            }
         }
     }
 
-    function stopRecording() {
-        console.log('Stopping recording...'); // Debug log
-        if (isRecording) {
-            isRecording = false;
-            updateRecordingUI(false);
+    async function stopRecording() {
+        console.log('Stopping recording...');
+
+        if (mediaRecorder && isRecording) {
+            mediaRecorder.stop();
+        }
+
+        isRecording = false;
+        updateRecordingUI(false);
+        hideRecordingPopup();
+        stopRecordingTimer();
+    }
+
+    async function processAudioRecording() {
+        try {
+            if (audioChunks.length === 0) {
+                throw new Error('No audio data recorded');
+            }
+
+            // Create audio blob
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            console.log('Audio blob created, size:', audioBlob.size);
+
+            // Convert to base64 for Gemini API
+            const base64Audio = await blobToBase64(audioBlob);
+
+            // Send to Gemini API for speech-to-text
+            const transcript = await transcribeAudioWithGemini(base64Audio);
+
+            if (transcript && transcript.trim()) {
+                console.log('Audio transcribed:', transcript);
+
+                // Update search input
+                const searchInput = document.querySelector('.search-bar input');
+                if (searchInput) {
+                    searchInput.value = transcript;
+                    searchInput.focus();
+
+                    // Trigger translation
+                    await debouncedTranslate(transcript);
+                }
+            } else {
+                showToast('No speech detected in recording. Please try again.', 'warning');
+            }
+
+        } catch (error) {
+            console.error('Error processing audio:', error);
+            showToast('Error processing audio. Please try again.', 'error');
         }
     }
 
     function updateRecordingUI(recording) {
         const audioBtn = document.getElementById('audio-record-btn');
+        if (!audioBtn) return;
+
         const icon = audioBtn.querySelector('i');
 
         if (recording) {
             audioBtn.classList.add('recording');
-            icon.className = 'fas fa-stop';
-            audioBtn.title = 'Stop recording';
-            console.log('Recording UI updated - recording'); // Debug log
+            // Keep microphone icon but make it disabled
+            icon.className = 'fas fa-microphone';
+            audioBtn.title = 'Recording in progress...';
+            audioBtn.style.opacity = '0.6';
+            audioBtn.style.cursor = 'not-allowed';
+            console.log('Recording UI updated - recording');
         } else {
             audioBtn.classList.remove('recording');
             icon.className = 'fas fa-microphone';
             audioBtn.title = 'Record audio';
-            console.log('Recording UI updated - stopped'); // Debug log
+            audioBtn.style.opacity = '1';
+            audioBtn.style.cursor = 'pointer';
+            console.log('Recording UI updated - stopped');
         }
     }
 
-    async function processAudioRecording(audioBlob) {
-        console.log('Processing audio recording...'); // Debug log
-        try {
-            // Use direct speech recognition instead of processing audio blob
-            const text = await startSpeechRecognition();
-            if (text) {
-                console.log('Speech recognized:', text); // Debug log
-                // Update search input with transcribed text
-                const searchInput = document.querySelector('.search-bar input');
-                if (searchInput) {
-                    searchInput.value = text;
-                    searchInput.focus();
+    function showRecordingPopup() {
+        // Create recording popup
+        const popup = document.createElement('div');
+        popup.id = 'recording-popup';
+        popup.innerHTML = `
+            <div class="recording-popup-content">
+                <div class="recording-animation">
+                    <div class="recording-circle"></div>
+                    <div class="recording-pulse"></div>
+                </div>
+                <div class="recording-text">Recording...</div>
+                <div class="recording-timer" id="recording-timer">00:00</div>
+                <div class="recording-instructions">Speak your search query</div>
+                <button class="stop-recording-btn" id="stop-recording-btn">
+                    <i class="fas fa-stop"></i>
+                    Stop Recording
+                </button>
+            </div>
+        `;
 
-                    // Trigger translation
-                    const event = new Event('input', { bubbles: true });
-                    searchInput.dispatchEvent(event);
+        popup.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            z-index: 10000;
+            text-align: center;
+            min-width: 300px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        `;
+
+        // Add CSS for animation
+        const style = document.createElement('style');
+        style.textContent = `
+            .recording-animation {
+                position: relative;
+                width: 80px;
+                height: 80px;
+                margin: 0 auto 20px;
+            }
+            .recording-circle {
+                width: 60px;
+                height: 60px;
+                background: #ff4444;
+                border-radius: 50%;
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                animation: pulse 1.5s infinite;
+            }
+            .recording-pulse {
+                width: 80px;
+                height: 80px;
+                border: 3px solid #ff4444;
+                border-radius: 50%;
+                position: absolute;
+                top: 0;
+                left: 0;
+                animation: ripple 1.5s infinite;
+            }
+            @keyframes pulse {
+                0% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.1); opacity: 0.7; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+            @keyframes ripple {
+                0% { transform: scale(0.8); opacity: 1; }
+                100% { transform: scale(1.2); opacity: 0; }
+            }
+            .recording-text {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 10px;
+            }
+            .recording-timer {
+                font-size: 24px;
+                font-weight: bold;
+                color: #ff4444;
+                margin-bottom: 10px;
+            }
+            .recording-instructions {
+                font-size: 14px;
+                opacity: 0.8;
+                margin-bottom: 20px;
+            }
+            .stop-recording-btn {
+                background: #ff4444;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 25px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin: 0 auto;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 15px rgba(255, 68, 68, 0.3);
+            }
+            .stop-recording-btn:hover {
+                background: #ff3333;
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(255, 68, 68, 0.4);
+            }
+            .stop-recording-btn:active {
+                transform: translateY(0);
+            }
+            .stop-recording-btn i {
+                font-size: 14px;
+            }
+        `;
+
+        document.head.appendChild(style);
+        document.body.appendChild(popup);
+
+        // Add event listener for stop button
+        const stopBtn = document.getElementById('stop-recording-btn');
+        if (stopBtn) {
+            stopBtn.addEventListener('click', async () => {
+                console.log('Stop button clicked');
+                await stopRecording();
+            });
+        }
+    }
+
+    function hideRecordingPopup() {
+        const popup = document.getElementById('recording-popup');
+        if (popup) {
+            popup.remove();
+        }
+    }
+
+    function startRecordingTimer() {
+        recordingTimer = setInterval(() => {
+            if (recordingStartTime) {
+                const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                const timerElement = document.getElementById('recording-timer');
+                if (timerElement) {
+                    timerElement.textContent = timeString;
                 }
             }
-        } catch (error) {
-            console.error('Error processing audio:', error);
-            alert('Error processing audio. Please try again.');
-        }
+        }, 1000);
     }
 
-    async function startSpeechRecognition() {
+    function stopRecordingTimer() {
+        if (recordingTimer) {
+            clearInterval(recordingTimer);
+            recordingTimer = null;
+        }
+        recordingStartTime = null;
+    }
+
+    function showToast(message, type = 'info') {
+        // Create a simple toast notification
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+
+        const colors = {
+            info: '#2196F3',
+            success: '#4CAF50',
+            warning: '#FF9800',
+            error: '#F44336'
+        };
+
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${colors[type] || colors.info};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 4px;
+            z-index: 10001;
+            font-size: 14px;
+            max-width: 300px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        `;
+
+        document.body.appendChild(toast);
+
+        // Remove toast after 4 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 4000);
+    }
+
+    // Helper function to convert blob to base64
+    function blobToBase64(blob) {
         return new Promise((resolve, reject) => {
-            console.log('Starting speech recognition...'); // Debug log
-            // Check if browser supports Web Speech API
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                console.log('Speech recognition not supported'); // Debug log
-                reject(new Error('Speech recognition not supported'));
-                return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64 = reader.result.split(',')[1]; // Remove data:audio/webm;base64, prefix
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    // Function to transcribe audio using Gemini API
+    async function transcribeAudioWithGemini(base64Audio) {
+        try {
+            console.log('Sending audio to Gemini API for transcription...');
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `Please transcribe this audio to text. The audio contains speech in Indian languages (Hindi, Telugu, Tamil, Bengali, Gujarati, Punjabi) or English. Return only the transcribed text without any additional formatting or explanation.`
+                        }, {
+                            inline_data: {
+                                mime_type: "audio/webm",
+                                data: base64Audio
+                            }
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.1,
+                        topK: 32,
+                        topP: 1,
+                        maxOutputTokens: 1024,
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
             }
 
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
+            const data = await response.json();
+            console.log('Gemini API response:', data);
 
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'hi-IN,te-IN,ta-IN,bn-IN,gu-IN,pa-IN,en-IN'; // Indian languages + English
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const transcript = data.candidates[0].content.parts[0].text.trim();
+                console.log('Transcribed text:', transcript);
+                return transcript;
+            } else {
+                throw new Error('No transcription result from Gemini API');
+            }
 
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                console.log('Speech recognized:', transcript);
-                resolve(transcript);
-            };
-
-            recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                reject(new Error(event.error));
-            };
-
-            recognition.onend = () => {
-                console.log('Speech recognition ended');
-            };
-
-            // Start recognition
-            recognition.start();
-
-            // Fallback: if no result after 10 seconds, reject
-            setTimeout(() => {
-                if (recognition.state === 'running') {
-                    recognition.stop();
-                    reject(new Error('Speech recognition timeout'));
-                }
-            }, 10000);
-        });
+        } catch (error) {
+            console.error('Error transcribing audio with Gemini:', error);
+            throw new Error('Failed to transcribe audio. Please try again.');
+        }
     }
 });
 
@@ -820,4 +1093,5 @@ const debouncedTranslate = debounce(async (query) => {
         updateFallbackUrls(query, query);
     }
 }, 500); // Reduced from 1000ms to 500ms for faster response with Gemini 2.0 Flash
+
 
